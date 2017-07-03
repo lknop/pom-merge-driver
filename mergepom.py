@@ -22,6 +22,24 @@ def change_version(old_version, new_version, cont):
                         "<commonAppVersion>" + new_version + "</commonAppVersion>")
 
 
+def check_output(*popenargs, **kwargs):
+    r"""Run command with arguments and return its output as a byte string.
+    Backported from Python 2.7 as it's implemented as pure python on stdlib.
+    >>> check_output(['/usr/bin/python', '--version'])
+    Python 2.6.2
+    """
+    process = subprocess.Popen(stdout=subprocess.PIPE, *popenargs, **kwargs)
+    output, unused_err = process.communicate()
+    retcode = process.poll()
+    if retcode:
+        cmd = kwargs.get("args")
+        if cmd is None:
+            cmd = popenargs[0]
+        error = subprocess.CalledProcessError(retcode, cmd)
+        error.output = output
+        raise error
+    return output
+
 def get_project_version(f):
     try:
         tree = dom.parse(f)
@@ -44,6 +62,10 @@ def get_project_version(f):
         return None
 
 
+sys.stdout = open('/home/developer/env/mergepom_stdout.log', 'w')
+sys.stderr = open('/home/developer/env/mergepom_stderr.log', 'w')
+
+
 if len(sys.argv) == 2:
     current_branch_version = get_project_version(sys.argv[1])
     print(current_branch_version)
@@ -56,10 +78,6 @@ ancestor_version = get_project_version(sys.argv[1])
 current_branch_version = get_project_version(sys.argv[2])
 other_branch_version = get_project_version(sys.argv[3])
 
-
-#print(ancestor_version)
-#print(current_branch_version)
-#print(other_branch_version)
 
 # change current version in order to avoid merge conflicts
 if (
@@ -96,7 +114,7 @@ if enc != oenc:
     git_merge_res_str = git_merge_res.decode(enc)
 
 cmd = "git rev-parse --abbrev-ref HEAD"
-p = subprocess.check_output(shlex.split(cmd))
+p = check_output(shlex.split(cmd))
 branch = p.strip().decode('utf-8')
 
 cmd = "git config --get --bool merge.pommerge.keepmasterversion"
